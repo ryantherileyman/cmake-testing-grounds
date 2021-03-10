@@ -1,2 +1,2 @@
 # cmake-testing-grounds
-Demo repository for a CMake guide
+This is a demonstration repository for my CMake guide.
