@@ -10,3 +10,9 @@ add_executable(
 	LearnCMakePart1
 	main.cpp
 )
+
+add_custom_command(
+	TARGET LearnCMakePart1 POST_BUILD
+	COMMAND ${CMAKE_COMMAND} -E copy_directory
+		${CMAKE_SOURCE_DIR}/resources $<TARGET_FILE_DIR:LearnCMakePart1>/resources
+)
