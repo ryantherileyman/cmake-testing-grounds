@@ -16,7 +16,6 @@ int main(int argc, char* argv[]) {
 		if (SDL_WaitEvent(&event)) {
 			if (event.type == SDL_QUIT) {
 				windowIsOpen = false;
-				break;
 			}
 		}
 
