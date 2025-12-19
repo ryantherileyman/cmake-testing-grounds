@@ -52,14 +52,14 @@ static void shutdownSdl() {
 	SDL_Quit();
 }
 
-class FrameTimer {
+class GameTimer {
 
 private:
 	Uint64 lastCounter;
 	double frequency;
 
 public:
-	FrameTimer() {
+	GameTimer() {
 		this->lastCounter = SDL_GetPerformanceCounter();
 		this->frequency = static_cast<double>(SDL_GetPerformanceFrequency());
 	}
@@ -70,20 +70,21 @@ public:
 
 		this->lastCounter = now;
 
+		// Duration is measured in seconds
 		std::chrono::duration<double> result = std::chrono::duration<double>(delta / this->frequency);
 		return result;
 	}
 
 };
 
-FrameTimer timer;
+GameTimer timer;
 bool gameIsRunning = true;
 
 static void gameLoop(void* userData) {
 	SDL_Event event;
 	GopherGame* game = static_cast<GopherGame*>(userData);
 
-	auto timerDelta = timer.tick();
+	std::chrono::duration<double> timerDelta = timer.tick();
 
 	while (SDL_PollEvent(&event)) {
 		if (event.type == SDL_QUIT) {
@@ -101,6 +102,7 @@ static void gameLoop(void* userData) {
 }
 
 static bool runGame() {
+	// Scope the game object here, to ensure it loses scope before calling shutdownSdl()
 	GopherGame game;
 
 	bool result = game.isInitialized();

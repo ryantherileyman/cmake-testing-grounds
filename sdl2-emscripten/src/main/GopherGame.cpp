@@ -262,6 +262,7 @@ bool GopherGame::isInitialized() const {
 		(ptr->music != nullptr) &&
 		(ptr->gopherTexture != nullptr) &&
 		(ptr->gopherHitTexture != nullptr) &&
+		(ptr->attributionTexture != nullptr) &&
 		(ptr->gopherAppearSfx != nullptr) &&
 		(ptr->gopherHitSfx != nullptr) &&
 		(ptr->gopherDisappearSfx != nullptr);
