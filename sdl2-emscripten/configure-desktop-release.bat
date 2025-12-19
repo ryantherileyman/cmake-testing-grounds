@@ -1,0 +1,3 @@
+@ECHO OFF
+ECHO Configuring Desktop Release build in "out/build/x64-Debug"...
+cmake -B out/build/x64-Release -DCMAKE_BUILD_TYPE=Release

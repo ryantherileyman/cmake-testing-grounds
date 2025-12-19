@@ -6,21 +6,14 @@ For the desktop build, SDL2 is brought in via CMake's FetchContent module.  For 
 
 The game itself is a simplified version of Whack-a-Mole.  I bet you didn't think Whack-a-Mole could be simplified.  But you were wrong.  😆  Will you hit the gopher to make him sad?  Or leave him alone to accumulate misses while you listen to Kevin MacLeod's catchy 8-bit tune?
 
-### Desktop Command-Line Build Instructions (Windows)
+### Build Instructions (Windows)
 
-The following will output the desktop build to the `out/cl-build` folder:
-```
-cmake -B out/cl-build -S . -A x64 -G "Visual Studio 17 2022" -DCMAKE_BUILD_TYPE=Debug
-cmake --build out/cl-build --config debug
-```
+For Visual Studio, you can simply use the Open Folder option in the menu to open the project, and it will let you build a default x64-Debug desktop configuration.  I've included batch files for Windows users to build separate targets for:
+- Desktop Release (`configure-desktop-release.bat` and `build-desktop-release.bat`)
+- Emscripten (WebAssembly) Debug (`configure-emscripten-debug.bat` and `build-emscripten-debug.bat`)
+- Emscripten (WebAssembly) Release (`configure-emscripten-release.bat` and `build-emscripten-release.bat`)
 
-### Emscripten Command-Line Build Instructions
-
-The following will output the WebAssembly build to the `out/web-build` folder:
-```
-emcmake cmake -B out/web-build -G "Ninja"
-cmake --build out/web-build
-```
+I tried to get Emscripten configurations working with a `CMakePresets.json` file, but Visual Studio was incredibly finicky and I couldn't get a reliable workflow going with it.  I may continue investigating this further in the future, but for now I'm building the Emscripten builds on the command-line.
 
 ### Attribution
 

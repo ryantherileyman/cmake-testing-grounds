@@ -1,0 +1,3 @@
+@ECHO OFF
+ECHO Building Desktop Release target to "out/build/x64-Release"...
+cmake --build out/build/x64-Release --config Release
