@@ -1,9 +1,15 @@
 
 #include <chrono>
+
+#ifdef __EMSCRIPTEN__
+#include <emscripten/emscripten.h>
+#endif
+
 #include <SDL.h>
 #include <SDL_image.h>
 #include <SDL_ttf.h>
 #include <SDL_mixer.h>
+
 #include "GopherGame.hpp"
 
 struct InitSdlResult {
@@ -99,10 +105,14 @@ static bool runGame() {
 
 	bool result = game.isInitialized();
 	if (result) {
+#ifdef __EMSCRIPTEN__
+		emscripten_set_main_loop_arg(gameLoop, &game, 0, true);
+#else
 		while (gameIsRunning) {
 			gameLoop(&game);
 			SDL_Delay(1);
 		}
+#endif
 	}
 
 	return result;

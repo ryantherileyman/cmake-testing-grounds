@@ -1,10 +1,13 @@
 
 #include <string>
 #include <random>
+#include <cmath>
 #include <stdexcept>
+
 #include <SDL_ttf.h>
 #include <SDL_mixer.h>
 #include <SDL_image.h>
+
 #include "GopherGame.hpp"
 
 enum class GopherGameState {
@@ -113,9 +116,15 @@ struct GopherGame::Impl {
 	}
 
 	SDL_Window* createWindow() {
+#ifdef __EMSCRIPTEN__
+		int windowWidth = 960;
+		int windowHeight = 540;
+		int windowFlags = 0;
+#else
 		int windowWidth = 960;
 		int windowHeight = 540;
 		int windowFlags = SDL_WINDOW_RESIZABLE;
+#endif
 
 		SDL_Window* result = SDL_CreateWindow("Hit the Gopher!", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowWidth, windowHeight, windowFlags);
 		return result;
@@ -270,6 +279,22 @@ void GopherGame::handleEvent(const SDL_Event& event) {
 				(ptr->gopherAppearanceState == GopherAppearanceState::APPEARED)
 			) {
 				SDL_Point clickPoint{ event.button.x, event.button.y };
+				ptr->attemptGopherHit(clickPoint);
+			}
+		}
+	}
+	else if (event.type == SDL_FINGERDOWN) {
+		if (ptr->gameState == GopherGameState::WAIT_TO_START) {
+			ptr->transitionToPlayGame();
+		}
+		else if (ptr->gameState == GopherGameState::PLAY_GAME) {
+			if (ptr->gopherAppearanceState == GopherAppearanceState::APPEARED) {
+				int windowWidth = 0, windowHeight = 0;
+				SDL_GetWindowSize(ptr->window, &windowWidth, &windowHeight);
+
+				SDL_Point clickPoint{ 0, 0 };
+				clickPoint.x = static_cast<int>(round(event.tfinger.x * windowWidth));
+				clickPoint.y = static_cast<int>(round(event.tfinger.y * windowHeight));
 				ptr->attemptGopherHit(clickPoint);
 			}
 		}

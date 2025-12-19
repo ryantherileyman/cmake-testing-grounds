@@ -41,3 +41,36 @@ if(NOT EMSCRIPTEN)
 	)
 	add_dependencies(Sdl2EmscriptenExample CopySdl2EmscriptenExampleResources)
 endif()
+
+if(EMSCRIPTEN)
+	message(STATUS "Configuring Emscripten WebAssembly build")
+
+	set_target_properties(
+		Sdl2EmscriptenExample PROPERTIES
+		SUFFIX ".html"
+	)
+
+	target_compile_options(
+		Sdl2EmscriptenExample PRIVATE
+		"-sUSE_SDL=2"
+		"-sUSE_SDL_IMAGE=2"
+		"-sUSE_SDL_MIXER=2"
+		"-sUSE_SDL_TTF=2"
+		"-sSDL2_IMAGE_FORMATS=[\"png\",\"jpg\"]"
+		"-sSDL2_MIXER_FORMATS=[\"ogg\"]"
+	)
+
+	target_link_options(
+		Sdl2EmscriptenExample PRIVATE
+		"-sUSE_SDL=2"
+		"-sUSE_SDL_IMAGE=2"
+		"-sUSE_SDL_MIXER=2"
+		"-sUSE_SDL_TTF=2"
+		"-sSDL2_IMAGE_FORMATS=[\"png\",\"jpg\"]"
+		"-sSDL2_MIXER_FORMATS=[\"ogg\"]"
+		"--preload-file" "${CMAKE_SOURCE_DIR}/src/resources@resources"
+		"-sALLOW_MEMORY_GROWTH=1"
+		"-sASSERTIONS=1"
+		"-sFORCE_FILESYSTEM=1"
+	)
+endif()
