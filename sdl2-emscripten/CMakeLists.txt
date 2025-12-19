@@ -1,7 +1,10 @@
 
 cmake_minimum_required(VERSION 3.24)
 
-project(Sdl2EmscriptenExample VERSION 1.0)
+project(Sdl2EmscriptenExample
+	VERSION 1.0
+	LANGUAGES CXX
+)
 
 if(NOT EMSCRIPTEN)
 add_subdirectory(dependencies/sdl2)

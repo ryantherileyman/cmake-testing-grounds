@@ -1,7 +1,4 @@
 
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED true)
-
 set(SAMPLE_SDL2_EMSCRIPTEN_SOURCES
 	GopherGame.cpp
 	main.cpp
@@ -12,7 +9,15 @@ add_executable(
 	${SAMPLE_SDL2_EMSCRIPTEN_SOURCES}
 )
 
-target_include_directories(Sdl2EmscriptenExample PUBLIC "${PROJECT_SOURCE_DIR}/include")
+target_compile_features(
+	Sdl2EmscriptenExample PRIVATE
+	cxx_std_17
+)
+
+target_include_directories(
+	Sdl2EmscriptenExample PRIVATE
+	"${PROJECT_SOURCE_DIR}/include"
+)
 
 if(NOT EMSCRIPTEN)
 	message(STATUS "Configuring native desktop build")
@@ -50,6 +55,8 @@ if(EMSCRIPTEN)
 		SUFFIX ".html"
 	)
 
+	# For a complete list of options, see https://emscripten.org/docs/tools_reference/settings_reference.html
+	# Most options are linker only, but these options must be sent to the compiler as well
 	target_compile_options(
 		Sdl2EmscriptenExample PRIVATE
 		"-sUSE_SDL=2"

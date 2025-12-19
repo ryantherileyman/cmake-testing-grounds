@@ -22,6 +22,8 @@ enum class GopherAppearanceState {
 	HIT,
 };
 
+constexpr int GOPHER_TEXTURE_SIZE = 128;
+
 struct GopherGame::Impl {
 
 	SDL_Window* window = nullptr;
@@ -93,7 +95,7 @@ struct GopherGame::Impl {
 		}
 
 		if (this->gopherAppearSfx != nullptr) {
-			Mix_FreeChunk(this->gopherDisappearSfx);
+			Mix_FreeChunk(this->gopherAppearSfx);
 			this->gopherAppearSfx = nullptr;
 		}
 		if (this->gopherHitSfx != nullptr) {
@@ -231,7 +233,7 @@ struct GopherGame::Impl {
 	}
 
 	void attemptGopherHit(SDL_Point& clickPoint) {
-		SDL_Rect gopherRect{ this->gopherPosition.x, this->gopherPosition.y, 128, 128 };
+		SDL_Rect gopherRect{ this->gopherPosition.x, this->gopherPosition.y, GOPHER_TEXTURE_SIZE, GOPHER_TEXTURE_SIZE };
 		if (SDL_PointInRect(&clickPoint, &gopherRect)) {
 			this->gopherAppearanceState = GopherAppearanceState::HIT;
 			this->hitCount++;
@@ -323,11 +325,11 @@ void GopherGame::render() {
 		ptr->renderCenteredText(scoreString, 16);
 
 		if (ptr->gopherAppearanceState == GopherAppearanceState::APPEARED) {
-			SDL_Rect gopherRect{ ptr->gopherPosition.x, ptr->gopherPosition.y, 128, 128 };
+			SDL_Rect gopherRect{ ptr->gopherPosition.x, ptr->gopherPosition.y, GOPHER_TEXTURE_SIZE, GOPHER_TEXTURE_SIZE };
 			SDL_RenderCopy(ptr->renderer, ptr->gopherTexture, nullptr, &gopherRect);
 		}
 		else if (ptr->gopherAppearanceState == GopherAppearanceState::HIT) {
-			SDL_Rect gopherRect{ ptr->gopherPosition.x, ptr->gopherPosition.y, 128, 128 };
+			SDL_Rect gopherRect{ ptr->gopherPosition.x, ptr->gopherPosition.y, GOPHER_TEXTURE_SIZE, GOPHER_TEXTURE_SIZE };
 			SDL_RenderCopy(ptr->renderer, ptr->gopherHitTexture, nullptr, &gopherRect);
 		}
 	}

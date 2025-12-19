@@ -20,14 +20,17 @@ struct InitSdlResult {
 	int sdlMixOpenAudioResult = -1;
 };
 
+constexpr int GAME_IMAGE_FORMATS = IMG_INIT_PNG | IMG_INIT_JPG;
+constexpr int GAME_MIXER_FORMATS = MIX_INIT_OGG;
+
 static InitSdlResult initializeSdl() {
 	InitSdlResult result;
 
-	result.sdlInitResult = SDL_Init(SDL_INIT_VIDEO);
-	result.sdlImageInitResult = IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG);
+	result.sdlInitResult = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
+	result.sdlImageInitResult = IMG_Init(GAME_IMAGE_FORMATS);
 	result.sdlTtfInitResult = TTF_Init();
 
-	result.sdlMixInitResult = Mix_Init(MIX_INIT_OGG);
+	result.sdlMixInitResult = Mix_Init(GAME_MIXER_FORMATS);
 	result.sdlMixOpenAudioResult = Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048);
 
 	return result;
@@ -36,9 +39,9 @@ static InitSdlResult initializeSdl() {
 static bool sdlInitialized(const InitSdlResult& initResult) {
 	bool result =
 		(initResult.sdlInitResult == 0) &&
-		(initResult.sdlImageInitResult == (IMG_INIT_PNG | IMG_INIT_JPG)) &&
+		((initResult.sdlImageInitResult & GAME_IMAGE_FORMATS) == GAME_IMAGE_FORMATS) &&
 		(initResult.sdlTtfInitResult == 0) &&
-		(initResult.sdlMixInitResult == MIX_INIT_OGG) &&
+		((initResult.sdlMixInitResult & GAME_MIXER_FORMATS) == GAME_MIXER_FORMATS) &&
 		(initResult.sdlMixOpenAudioResult == 0);
 	return result;
 }
@@ -77,42 +80,44 @@ public:
 
 };
 
-GameTimer timer;
-bool gameIsRunning = true;
+struct GameUserData {
+	GameTimer timer;
+	bool gameIsRunning = true;
+	GopherGame game;
+};
 
 static void gameLoop(void* userData) {
 	SDL_Event event;
-	GopherGame* game = static_cast<GopherGame*>(userData);
+	GameUserData* gameUserData = static_cast<GameUserData*>(userData);
 
-	std::chrono::duration<double> timerDelta = timer.tick();
+	std::chrono::duration<double> timerDelta = gameUserData->timer.tick();
 
 	while (SDL_PollEvent(&event)) {
 		if (event.type == SDL_QUIT) {
-			gameIsRunning = false;
+			gameUserData->gameIsRunning = false;
 		}
 		else {
-			game->handleEvent(event);
+			gameUserData->game.handleEvent(event);
 		}
 	}
 
-	if (gameIsRunning) {
-		game->updateState(timerDelta);
-		game->render();
+	if (gameUserData->gameIsRunning) {
+		gameUserData->game.updateState(timerDelta);
+		gameUserData->game.render();
 	}
 }
 
 static bool runGame() {
 	// Scope the game object here, to ensure it loses scope before calling shutdownSdl()
-	GopherGame game;
+	GameUserData gameUserData;
 
-	bool result = game.isInitialized();
+	bool result = gameUserData.game.isInitialized();
 	if (result) {
 #ifdef __EMSCRIPTEN__
-		emscripten_set_main_loop_arg(gameLoop, &game, 0, true);
+		emscripten_set_main_loop_arg(gameLoop, &gameUserData, 0, true);
 #else
-		while (gameIsRunning) {
-			gameLoop(&game);
-			SDL_Delay(1);
+		while (gameUserData.gameIsRunning) {
+			gameLoop(&gameUserData);
 		}
 #endif
 	}
@@ -126,10 +131,12 @@ int main(int argc, char* argv[]) {
 	InitSdlResult initSdlResult = initializeSdl();
 	if (sdlInitialized(initSdlResult)) {
 		if (!runGame()) {
+			SDL_Log("Failed to initialize the game");
 			result = -1;
 		}
 	}
 	else {
+		SDL_Log("Failed to initialize SDL");
 		result = -1;
 	}
 

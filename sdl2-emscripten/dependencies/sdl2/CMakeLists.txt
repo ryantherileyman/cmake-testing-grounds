@@ -1,9 +1,16 @@
 
-include(FetchContent)
+if (EMSCRIPTEN)
+	message(FATAL_ERROR "SDL2 should not be included for Emscripten builds, which use an Emscripten port instead")
+endif()
 
+# SDL2_image, SDL2_mixer, and SDL2_ttf do not provide namespaced options to toggle between shared vs. static libraries
+# This sample project will link to shared SDL2 libraries, so we toggle BUILD_SHARED_LIBS at the start and end of this script
 set(SDL2_EMSCRIPTEN_EXAMPLE_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
 
-set(BUILD_SHARED_LIBS OFF)
+include(FetchContent)
+
+set(SDL_SHARED OFF CACHE BOOL "" FORCE)
+set(SDL_STATIC ON CACHE BOOL "" FORCE)
 FetchContent_Declare(
 	SDL2
 	GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
@@ -47,6 +54,9 @@ set(SDL2MIXER_MIDI OFF CACHE BOOL "" FORCE)
 set(SDL2MIXER_OPUS OFF CACHE BOOL "" FORCE)
 set(SDL2MIXER_WAVE OFF CACHE BOOL "" FORCE)
 set(SDL2MIXER_WAVPACK OFF CACHE BOOL "" FORCE)
+# Note that OGG/Vorbis support is enabled by choosing an appropriate backend
+# This project uses the default STB backend; use the empty string "" if you want to turn off OGG/Vorbis support
+set(SDL2MIXER_VORBIS "STB" CACHE STRING "Enable OGG Vorbis music" FORCE)
 FetchContent_Declare(
 	SDL2_mixer
 	GIT_REPOSITORY https://github.com/libsdl-org/SDL_mixer.git
