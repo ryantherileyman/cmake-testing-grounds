@@ -22,6 +22,13 @@ target_include_directories(
 if(NOT EMSCRIPTEN)
 	message(STATUS "Configuring native desktop build")
 
+	if(WIN32)
+		set_target_properties(
+			Sdl2EmscriptenExample PROPERTIES
+			WIN32_EXECUTABLE $<$<CONFIG:Release>:ON>
+		)
+	endif()
+	
 	if(TARGET SDL2::SDL2main)
 		target_link_libraries(
 			Sdl2EmscriptenExample PRIVATE
