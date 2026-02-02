@@ -2,7 +2,7 @@
 #include <chrono>
 
 #ifdef __EMSCRIPTEN__
-#include <emscripten/emscripten.h>
+#include <emscripten.h>
 #endif
 
 #include <SDL.h>
