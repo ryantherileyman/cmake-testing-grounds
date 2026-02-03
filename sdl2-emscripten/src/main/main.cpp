@@ -6,6 +6,11 @@
 #endif
 
 #include <SDL.h>
+#include <SDL_stdinc.h>
+#include <SDL_timer.h>
+#include <SDL_events.h>
+#include <SDL_main.h>
+#include <SDL_log.h>
 #include <SDL_image.h>
 #include <SDL_ttf.h>
 #include <SDL_mixer.h>

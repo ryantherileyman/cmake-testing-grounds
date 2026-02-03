@@ -1,9 +1,19 @@
 
+#include <stdexcept>
+#include <memory>
 #include <string>
 #include <random>
 #include <cmath>
-#include <stdexcept>
+#include <chrono>
 
+#include <SDL_stdinc.h>
+#include <SDL_video.h>
+#include <SDL_rect.h>
+#include <SDL_render.h>
+#include <SDL_surface.h>
+#include <SDL_pixels.h>
+#include <SDL_events.h>
+#include <SDL_mouse.h>
 #include <SDL_ttf.h>
 #include <SDL_mixer.h>
 #include <SDL_image.h>
@@ -53,7 +63,14 @@ struct GopherGame::Impl {
 	Impl() {
 		this->window = this->createWindow();
 		if (this->window != nullptr) {
+			SDL_SetWindowMinimumSize(this->window, 250, 250);
+
 			this->renderer = SDL_CreateRenderer(this->window, -1, SDL_RENDERER_ACCELERATED);
+
+			int windowWidth = 0;
+			int windowHeight = 0;
+			SDL_GetWindowSize(this->window, &windowWidth, &windowHeight);
+			SDL_RenderSetLogicalSize(this->renderer, windowWidth, windowHeight);
 		}
 		if (this->renderer != nullptr) {
 			this->font = TTF_OpenFont("resources/OpenSans-Semibold.ttf", 24);
@@ -132,6 +149,34 @@ struct GopherGame::Impl {
 		return result;
 	}
 
+	void onWindowResize() const {
+		int windowWidth = 0, windowHeight = 0;
+		SDL_GetWindowSize(this->window, &windowWidth, &windowHeight);
+
+		if ((windowWidth < 640) || (windowHeight < 360)) {
+			double aspectRatio = (double)windowWidth / (double)windowHeight;
+
+			int logicalWidth = windowWidth;
+			int logicalHeight = windowHeight;
+
+			if (windowWidth > windowHeight) {
+				logicalWidth = (int)std::ceil(360.0 * aspectRatio);
+				logicalHeight = 360;
+			}
+			else {
+				logicalWidth = 640;
+				logicalHeight = (int)std::ceil(640.0 / aspectRatio);
+			}
+
+			SDL_RenderSetLogicalSize(this->renderer, logicalWidth, logicalHeight);
+			SDL_RenderSetIntegerScale(this->renderer, SDL_FALSE);
+		}
+		else {
+			SDL_RenderSetLogicalSize(this->renderer, windowWidth, windowHeight);
+			SDL_RenderSetIntegerScale(this->renderer, SDL_TRUE);
+		}
+	}
+
 	void renderCenteredText(const std::string& text, int y) const {
 		SDL_Surface* surface = TTF_RenderUTF8_Blended(this->font, text.c_str(), SDL_Color{ 0x10, 0x10, 0x10, 0xFF });
 		if (surface == nullptr) {
@@ -146,7 +191,7 @@ struct GopherGame::Impl {
 		SDL_FreeSurface(surface);
 
 		int windowWidth = 0, windowHeight = 0;
-		SDL_GetWindowSize(this->window, &windowWidth, &windowHeight);
+		SDL_RenderGetLogicalSize(this->renderer, &windowWidth, &windowHeight);
 
 		int textWidth = 0, textHeight = 0;
 		SDL_QueryTexture(texture, nullptr, nullptr, &textWidth, &textHeight);
@@ -164,7 +209,7 @@ struct GopherGame::Impl {
 
 	void renderAttribution() const {
 		int windowWidth = 0, windowHeight = 0;
-		SDL_GetWindowSize(this->window, &windowWidth, &windowHeight);
+		SDL_RenderGetLogicalSize(this->renderer, &windowWidth, &windowHeight);
 
 		int textWidth = 0, textHeight = 0;
 		SDL_QueryTexture(this->attributionTexture, nullptr, nullptr, &textWidth, &textHeight);
@@ -195,7 +240,7 @@ struct GopherGame::Impl {
 
 	SDL_Point decideGopherPosition() { // Cannot be const, because this->prng changes its state when it's called
 		int windowWidth = 0, windowHeight = 0;
-		SDL_GetWindowSize(this->window, &windowWidth, &windowHeight);
+		SDL_RenderGetLogicalSize(this->renderer, &windowWidth, &windowHeight);
 
 		std::uniform_int_distribution<int> xRange(10, windowWidth - 138);
 		std::uniform_int_distribution<int> yRange(50, windowHeight - 138);
@@ -272,7 +317,12 @@ bool GopherGame::isInitialized() const {
 }
 
 void GopherGame::handleEvent(const SDL_Event& event) {
-	if (event.type == SDL_MOUSEBUTTONDOWN) {
+	if (event.type == SDL_WINDOWEVENT) {
+		if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
+			ptr->onWindowResize();
+		}
+	}
+	else if (event.type == SDL_MOUSEBUTTONDOWN) {
 		if (ptr->gameState == GopherGameState::WAIT_TO_START) {
 			ptr->transitionToPlayGame();
 		}
@@ -293,7 +343,7 @@ void GopherGame::handleEvent(const SDL_Event& event) {
 		else if (ptr->gameState == GopherGameState::PLAY_GAME) {
 			if (ptr->gopherAppearanceState == GopherAppearanceState::APPEARED) {
 				int windowWidth = 0, windowHeight = 0;
-				SDL_GetWindowSize(ptr->window, &windowWidth, &windowHeight);
+				SDL_RenderGetLogicalSize(ptr->renderer, &windowWidth, &windowHeight);
 
 				SDL_Point clickPoint{ 0, 0 };
 				clickPoint.x = static_cast<int>(round(event.tfinger.x * windowWidth));
