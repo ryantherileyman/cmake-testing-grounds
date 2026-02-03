@@ -39,12 +39,16 @@ struct GopherGame::Impl {
 	SDL_Window* window = nullptr;
 	SDL_Renderer* renderer = nullptr;
 
-	TTF_Font* font = nullptr;
+	TTF_Font* standardFont = nullptr;
+	TTF_Font* smallFont = nullptr;
+
 	Mix_Music* music = nullptr;
 
 	SDL_Texture* gopherTexture = nullptr;
 	SDL_Texture* gopherHitTexture = nullptr;
+
 	SDL_Texture* attributionTexture = nullptr;
+	SDL_Texture* smallAttributionTexture = nullptr;
 
 	Mix_Chunk* gopherAppearSfx = nullptr;
 	Mix_Chunk* gopherHitSfx = nullptr;
@@ -73,12 +77,16 @@ struct GopherGame::Impl {
 			SDL_RenderSetLogicalSize(this->renderer, windowWidth, windowHeight);
 		}
 		if (this->renderer != nullptr) {
-			this->font = TTF_OpenFont("resources/OpenSans-Semibold.ttf", 24);
+			this->standardFont = TTF_OpenFont("resources/OpenSans-Semibold.ttf", 24);
+			this->smallFont = TTF_OpenFont("resources/OpenSans-Semibold.ttf", 16);
+
 			this->music = Mix_LoadMUS("resources/bit-shift.ogg");
 
 			this->gopherTexture = IMG_LoadTexture(this->renderer, "resources/gopher-128px.png");
 			this->gopherHitTexture = IMG_LoadTexture(this->renderer, "resources/gopher-hit-128px.png");
+
 			this->attributionTexture = IMG_LoadTexture(this->renderer, "resources/attribution-text-block.png");
+			this->smallAttributionTexture = IMG_LoadTexture(this->renderer, "resources/attribution-text-block-small.png");
 
 			this->gopherAppearSfx = Mix_LoadWAV("resources/gopher-appears.ogg");
 			this->gopherHitSfx = Mix_LoadWAV("resources/gopher-hit.ogg");
@@ -90,10 +98,15 @@ struct GopherGame::Impl {
 	}
 
 	~Impl() {
-		if (this->font != nullptr) {
-			TTF_CloseFont(this->font);
-			this->font = nullptr;
+		if (this->standardFont != nullptr) {
+			TTF_CloseFont(this->standardFont);
+			this->standardFont = nullptr;
 		}
+		if (this->smallFont != nullptr) {
+			TTF_CloseFont(this->smallFont);
+			this->smallFont = nullptr;
+		}
+
 		if (this->music != nullptr) {
 			Mix_FreeMusic(this->music);
 		}
@@ -106,9 +119,14 @@ struct GopherGame::Impl {
 			SDL_DestroyTexture(this->gopherHitTexture);
 			this->gopherHitTexture = nullptr;
 		}
+
 		if (this->attributionTexture != nullptr) {
 			SDL_DestroyTexture(this->attributionTexture);
 			this->attributionTexture = nullptr;
+		}
+		if (this->smallAttributionTexture != nullptr) {
+			SDL_DestroyTexture(this->smallAttributionTexture);
+			this->smallAttributionTexture = nullptr;
 		}
 
 		if (this->gopherAppearSfx != nullptr) {
@@ -149,36 +167,54 @@ struct GopherGame::Impl {
 		return result;
 	}
 
+	SDL_Point resolveLogicalWindowSize(int windowWidth, int windowHeight, int clampWidth, int clampHeight) const {
+		double aspectRatio = (double)windowWidth / (double)windowHeight;
+
+		SDL_Point result{ windowWidth, windowHeight };
+
+		if (windowWidth > windowHeight) {
+			result.x = (int)std::ceil((double)clampHeight * aspectRatio);
+			result.y = clampHeight;
+		}
+		else {
+			result.x = clampWidth;
+			result.y = (int)std::ceil((double)clampWidth / aspectRatio);
+		}
+
+		return result;
+	}
+
 	void onWindowResize() const {
 		int windowWidth = 0, windowHeight = 0;
 		SDL_GetWindowSize(this->window, &windowWidth, &windowHeight);
 
-		if ((windowWidth < 640) || (windowHeight < 360)) {
-			double aspectRatio = (double)windowWidth / (double)windowHeight;
+		SDL_Point logicalWindowSize{ windowWidth, windowHeight };
 
-			int logicalWidth = windowWidth;
-			int logicalHeight = windowHeight;
-
-			if (windowWidth > windowHeight) {
-				logicalWidth = (int)std::ceil(360.0 * aspectRatio);
-				logicalHeight = 360;
-			}
-			else {
-				logicalWidth = 640;
-				logicalHeight = (int)std::ceil(640.0 / aspectRatio);
-			}
-
-			SDL_RenderSetLogicalSize(this->renderer, logicalWidth, logicalHeight);
-			SDL_RenderSetIntegerScale(this->renderer, SDL_FALSE);
+		// Only use a logical size that differs from window size for extremely small windows
+		if ((windowWidth < 480) || (windowHeight < 270)) {
+			logicalWindowSize = this->resolveLogicalWindowSize(windowWidth, windowHeight, 480, 270);
 		}
-		else {
-			SDL_RenderSetLogicalSize(this->renderer, windowWidth, windowHeight);
-			SDL_RenderSetIntegerScale(this->renderer, SDL_TRUE);
-		}
+
+		bool logicalSizeEqualsWindowSize = ((logicalWindowSize.x == windowWidth) && (logicalWindowSize.y == windowHeight));
+		SDL_RenderSetLogicalSize(this->renderer, logicalWindowSize.x, logicalWindowSize.y);
+		SDL_RenderSetIntegerScale(this->renderer, logicalSizeEqualsWindowSize ? SDL_TRUE : SDL_FALSE);
+	}
+
+	bool isSmallWindowSize(int windowWidth, int windowHeight) const {
+		bool result = ((windowWidth < 640) || (windowHeight < 360));
+		return result;
 	}
 
 	void renderCenteredText(const std::string& text, int y) const {
-		SDL_Surface* surface = TTF_RenderUTF8_Blended(this->font, text.c_str(), SDL_Color{ 0x10, 0x10, 0x10, 0xFF });
+		int windowWidth = 0, windowHeight = 0;
+		SDL_RenderGetLogicalSize(this->renderer, &windowWidth, &windowHeight);
+
+		TTF_Font* uiFont = this->standardFont;
+		if (this->isSmallWindowSize(windowWidth, windowHeight)) {
+			uiFont = this->smallFont;
+		}
+
+		SDL_Surface* surface = TTF_RenderUTF8_Blended(uiFont, text.c_str(), SDL_Color{ 0x10, 0x10, 0x10, 0xFF });
 		if (surface == nullptr) {
 			throw std::runtime_error("TTF_RenderUTF8_Blended failed");
 		}
@@ -189,9 +225,6 @@ struct GopherGame::Impl {
 		}
 
 		SDL_FreeSurface(surface);
-
-		int windowWidth = 0, windowHeight = 0;
-		SDL_RenderGetLogicalSize(this->renderer, &windowWidth, &windowHeight);
 
 		int textWidth = 0, textHeight = 0;
 		SDL_QueryTexture(texture, nullptr, nullptr, &textWidth, &textHeight);
@@ -211,11 +244,16 @@ struct GopherGame::Impl {
 		int windowWidth = 0, windowHeight = 0;
 		SDL_RenderGetLogicalSize(this->renderer, &windowWidth, &windowHeight);
 
+		SDL_Texture* uiTexture = this->attributionTexture;
+		if (this->isSmallWindowSize(windowWidth, windowHeight)) {
+			uiTexture = this->smallAttributionTexture;
+		}
+
 		int textWidth = 0, textHeight = 0;
-		SDL_QueryTexture(this->attributionTexture, nullptr, nullptr, &textWidth, &textHeight);
+		SDL_QueryTexture(uiTexture, nullptr, nullptr, &textWidth, &textHeight);
 
 		SDL_Rect textRect = { (windowWidth / 2) - (textWidth / 2), windowHeight - textHeight, textWidth, textHeight };
-		SDL_RenderCopy(this->renderer, this->attributionTexture, nullptr, &textRect);
+		SDL_RenderCopy(this->renderer, uiTexture, nullptr, &textRect);
 	}
 
 	void transitionToPlayGame() {
@@ -305,11 +343,13 @@ bool GopherGame::isInitialized() const {
 	bool result =
 		(ptr->window != nullptr) &&
 		(ptr->renderer != nullptr) &&
-		(ptr->font != nullptr) &&
+		(ptr->smallFont != nullptr) &&
+		(ptr->standardFont != nullptr) &&
 		(ptr->music != nullptr) &&
 		(ptr->gopherTexture != nullptr) &&
 		(ptr->gopherHitTexture != nullptr) &&
 		(ptr->attributionTexture != nullptr) &&
+		(ptr->smallAttributionTexture != nullptr) &&
 		(ptr->gopherAppearSfx != nullptr) &&
 		(ptr->gopherHitSfx != nullptr) &&
 		(ptr->gopherDisappearSfx != nullptr);
