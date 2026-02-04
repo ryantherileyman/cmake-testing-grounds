@@ -6,6 +6,10 @@
 #include <cmath>
 #include <chrono>
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten/emscripten.h>
+#endif
+
 #include <SDL_stdinc.h>
 #include <SDL_video.h>
 #include <SDL_rect.h>
@@ -19,6 +23,15 @@
 #include <SDL_image.h>
 
 #include "GopherGame.hpp"
+
+#if defined(__EMSCRIPTEN__) || defined(EMSCRIPTEN_IN_IDE)
+EM_JS(int, get_canvas_width, (), {
+	return document.getElementById("canvas").width;
+});
+EM_JS(int, get_canvas_height, (), {
+	return document.getElementById("canvas").height;
+});
+#endif
 
 enum class GopherGameState {
 	WAIT_TO_START,
@@ -69,11 +82,11 @@ struct GopherGame::Impl {
 		if (this->window != nullptr) {
 			SDL_SetWindowMinimumSize(this->window, 250, 250);
 
-			this->renderer = SDL_CreateRenderer(this->window, -1, SDL_RENDERER_ACCELERATED);
-
 			int windowWidth = 0;
 			int windowHeight = 0;
 			SDL_GetWindowSize(this->window, &windowWidth, &windowHeight);
+
+			this->renderer = SDL_CreateRenderer(this->window, -1, SDL_RENDERER_ACCELERATED);
 			SDL_RenderSetLogicalSize(this->renderer, windowWidth, windowHeight);
 		}
 		if (this->renderer != nullptr) {
@@ -153,9 +166,9 @@ struct GopherGame::Impl {
 	}
 
 	SDL_Window* createWindow() {
-#ifdef __EMSCRIPTEN__
-		int windowWidth = 960;
-		int windowHeight = 540;
+#if defined(__EMSCRIPTEN__) || defined(EMSCRIPTEN_IN_IDE)
+		int windowWidth = get_canvas_width();
+		int windowHeight = get_canvas_height();
 		int windowFlags = 0;
 #else
 		int windowWidth = 960;
@@ -354,6 +367,10 @@ bool GopherGame::isInitialized() const {
 		(ptr->gopherHitSfx != nullptr) &&
 		(ptr->gopherDisappearSfx != nullptr);
 	return result;
+}
+
+SDL_Window* GopherGame::getWindow() const {
+	return ptr->window;
 }
 
 void GopherGame::handleEvent(const SDL_Event& event) {

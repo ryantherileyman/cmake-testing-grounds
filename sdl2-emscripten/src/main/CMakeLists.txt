@@ -62,36 +62,6 @@ if(EMSCRIPTEN)
 		SUFFIX ".html"
 	)
 
-	if(EMSCRIPTEN_IDE_WORKAROUNDS)
-		if(NOT DEFINED ENV{EMSDK})
-			message(WARNING "EMSCRIPTEN_IDE_WORKAROUNDS is ON, but EMSDK environment variable is not set")
-		endif()
-
-		message(STATUS "Adding __EMSCRIPTEN__ macro for IDE parsing")
-		target_compile_definitions(
-			Sdl2EmscriptenExample PRIVATE
-			__EMSCRIPTEN__
-		)
-
-		message(STATUS
-			"Adding core emscripten folder to system includes "
-			"(NOTE: This is an IDE-only workaround; if Emscripten ever moves this, will need to change the location)"
-		)
-		target_include_directories(
-			Sdl2EmscriptenExample SYSTEM PRIVATE
-			"$ENV{EMSDK}/upstream/emscripten/cache/sysroot/include/emscripten"
-		)
-
-		message(STATUS
-			"Adding Emscripten SDL2 folder to system includes "
-			"(NOTE: This is an IDE-only workaround; if Emscripten ever moves this, will need to change the location)"
-		)
-		target_include_directories(
-			Sdl2EmscriptenExample SYSTEM PRIVATE
-			"$ENV{EMSDK}/upstream/emscripten/cache/sysroot/include/SDL2"
-		)
-	endif()
-
 	# For a complete list of options, see https://emscripten.org/docs/tools_reference/settings_reference.html
 	# Most options are linker only, but these options must be sent to the compiler as well
 	target_compile_options(

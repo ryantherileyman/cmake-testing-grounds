@@ -2,12 +2,13 @@
 #include <chrono>
 
 #ifdef __EMSCRIPTEN__
-#include <emscripten.h>
+#include <emscripten/emscripten.h>
+#include <emscripten/html5.h>
 #endif
 
-#include <SDL.h>
 #include <SDL_stdinc.h>
 #include <SDL_timer.h>
+#include <SDL_video.h>
 #include <SDL_events.h>
 #include <SDL_main.h>
 #include <SDL_log.h>
@@ -91,6 +92,27 @@ struct GameUserData {
 	GopherGame game;
 };
 
+#if defined(__EMSCRIPTEN__) || defined(EMSCRIPTEN_IN_IDE)
+EM_BOOL em_resize_callback(int eventType, const EmscriptenUiEvent* uiEvent, void* userData) {
+	GameUserData* gameUserData = static_cast<GameUserData*>(userData);
+
+	int canvasWidth = 0, canvasHeight = 0;
+	emscripten_get_canvas_element_size("#canvas", &canvasWidth, &canvasHeight);
+
+	SDL_SetWindowSize(gameUserData->game.getWindow(), canvasWidth, canvasHeight);
+
+	SDL_Event event;
+	SDL_zero(event);
+	event.type = SDL_WINDOWEVENT;
+	event.window.event = SDL_WINDOWEVENT_SIZE_CHANGED;
+	event.window.data1 = canvasWidth;
+	event.window.data2 = canvasHeight;
+	SDL_PushEvent(&event);
+
+	return EM_TRUE;
+}
+#endif
+
 static void gameLoop(void* userData) {
 	SDL_Event event;
 	GameUserData* gameUserData = static_cast<GameUserData*>(userData);
@@ -118,7 +140,8 @@ static bool runGame() {
 
 	bool result = gameUserData.game.isInitialized();
 	if (result) {
-#ifdef __EMSCRIPTEN__
+#if defined(__EMSCRIPTEN__) || defined(EMSCRIPTEN_IN_IDE)
+		emscripten_set_resize_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, &gameUserData, false, em_resize_callback);
 		emscripten_set_main_loop_arg(gameLoop, &gameUserData, 0, true);
 #else
 		while (gameUserData.gameIsRunning) {

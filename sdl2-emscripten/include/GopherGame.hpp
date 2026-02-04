@@ -2,6 +2,7 @@
 #include <memory>
 #include <chrono>
 #include <SDL.h>
+
 #pragma once
 
 class GopherGame {
@@ -11,6 +12,8 @@ public:
 	~GopherGame();
 
 	bool isInitialized() const;
+
+	SDL_Window* getWindow() const;
 
 	void handleEvent(const SDL_Event& event);
 	void updateState(std::chrono::duration<double> timerDelta);

@@ -26,8 +26,7 @@
       "binaryDir": "${sourceDir}/out/build/${presetName}",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_TOOLCHAIN_FILE": "$env{EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake",
-        "EMSCRIPTEN_IDE_WORKAROUNDS": true
+        "CMAKE_TOOLCHAIN_FILE": "$env{EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake"
       }
     },
     {
@@ -37,9 +36,30 @@
       "binaryDir": "${sourceDir}/out/build/${presetName}",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_TOOLCHAIN_FILE": "$env{EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake",
-        "EMSCRIPTEN_IDE_WORKAROUNDS": true
+        "CMAKE_TOOLCHAIN_FILE": "$env{EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake"
       }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "x64-dev",
+      "displayName": "Local Dev (Ninja, Debug)",
+      "configurePreset": "x64-dev"
+    },
+    {
+      "name": "x64-rel",
+      "displayName": "Local Release",
+      "configurePreset": "x64-rel"
+    },
+    {
+      "name": "wasm-dev",
+      "displayName": "Emscripten Dev",
+      "configurePreset": "wasm-dev"
+    },
+    {
+      "name": "wasm-rel",
+      "displayName": "Emscripten Release",
+      "configurePreset": "wasm-rel"
     }
   ]
 }
