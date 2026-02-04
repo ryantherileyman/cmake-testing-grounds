@@ -6,7 +6,9 @@ project(Sdl2EmscriptenExample
 	LANGUAGES CXX
 )
 
-option(EMSCRIPTEN_IDE_WORKAROUNDS "Enable IDE macro and include path hints for Emscripten builds" OFF)
+if(EMSCRIPTEN AND NOT DEFINED ENV{EMSDK})
+message(FATAL_ERROR "EMSDK environment variable is not set")
+endif()
 
 if(NOT EMSCRIPTEN)
 add_subdirectory(dependencies/sdl2)

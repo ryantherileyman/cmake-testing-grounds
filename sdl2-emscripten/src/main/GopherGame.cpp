@@ -24,7 +24,7 @@
 
 #include "GopherGame.hpp"
 
-#if defined(__EMSCRIPTEN__) || defined(EMSCRIPTEN_IN_IDE)
+#ifdef __EMSCRIPTEN__
 EM_JS(int, get_canvas_width, (), {
 	return document.getElementById("canvas").width;
 });
@@ -63,11 +63,17 @@ struct GopherGame::Impl {
 	SDL_Texture* attributionTexture = nullptr;
 	SDL_Texture* smallAttributionTexture = nullptr;
 
+	SDL_Texture* fullscreenIconTexture = nullptr;
+
 	Mix_Chunk* gopherAppearSfx = nullptr;
 	Mix_Chunk* gopherHitSfx = nullptr;
 	Mix_Chunk* gopherDisappearSfx = nullptr;
 
 	GopherGameState gameState = GopherGameState::WAIT_TO_START;
+	
+	bool isFullscreen = false;
+	bool mouseRecoveredFromFullscreenToggle = true;
+
 	std::mt19937 prng{ std::random_device{}() }; // Could be marked "mutable"
 	int hitCount = 0;
 	int missCount = 0;
@@ -100,6 +106,8 @@ struct GopherGame::Impl {
 
 			this->attributionTexture = IMG_LoadTexture(this->renderer, "resources/attribution-text-block.png");
 			this->smallAttributionTexture = IMG_LoadTexture(this->renderer, "resources/attribution-text-block-small.png");
+
+			this->fullscreenIconTexture = IMG_LoadTexture(this->renderer, "resources/fullscreen-icons.png");
 
 			this->gopherAppearSfx = Mix_LoadWAV("resources/gopher-appears.ogg");
 			this->gopherHitSfx = Mix_LoadWAV("resources/gopher-hit.ogg");
@@ -142,6 +150,11 @@ struct GopherGame::Impl {
 			this->smallAttributionTexture = nullptr;
 		}
 
+		if (this->fullscreenIconTexture != nullptr) {
+			SDL_DestroyTexture(this->fullscreenIconTexture);
+			this->fullscreenIconTexture = nullptr;
+		}
+
 		if (this->gopherAppearSfx != nullptr) {
 			Mix_FreeChunk(this->gopherAppearSfx);
 			this->gopherAppearSfx = nullptr;
@@ -166,7 +179,7 @@ struct GopherGame::Impl {
 	}
 
 	SDL_Window* createWindow() {
-#if defined(__EMSCRIPTEN__) || defined(EMSCRIPTEN_IN_IDE)
+#ifdef __EMSCRIPTEN__
 		int windowWidth = get_canvas_width();
 		int windowHeight = get_canvas_height();
 		int windowFlags = 0;
@@ -197,7 +210,15 @@ struct GopherGame::Impl {
 		return result;
 	}
 
-	void onWindowResize() const {
+	SDL_Rect resolveFullscreenIconRect() const {
+		int windowWidth = 0, windowHeight = 0;
+		SDL_RenderGetLogicalSize(this->renderer, &windowWidth, &windowHeight);
+
+		SDL_Rect result = { windowWidth - 48, 12, 32, 32 };
+		return result;
+	}
+
+	void onWindowResize() {
 		int windowWidth = 0, windowHeight = 0;
 		SDL_GetWindowSize(this->window, &windowWidth, &windowHeight);
 
@@ -211,6 +232,21 @@ struct GopherGame::Impl {
 		bool logicalSizeEqualsWindowSize = ((logicalWindowSize.x == windowWidth) && (logicalWindowSize.y == windowHeight));
 		SDL_RenderSetLogicalSize(this->renderer, logicalWindowSize.x, logicalWindowSize.y);
 		SDL_RenderSetIntegerScale(this->renderer, logicalSizeEqualsWindowSize ? SDL_TRUE : SDL_FALSE);
+
+		if ( !this->mouseRecoveredFromFullscreenToggle ) {
+			SDL_Rect fullscreenIconRect = this->resolveFullscreenIconRect();
+			SDL_WarpMouseInWindow(this->window, fullscreenIconRect.x, fullscreenIconRect.y);
+
+			this->mouseRecoveredFromFullscreenToggle = true;
+		}
+	}
+
+	void toggleFullscreen() {
+		this->isFullscreen = !this->isFullscreen;
+		this->mouseRecoveredFromFullscreenToggle = false;
+
+		Uint32 flags = this->isFullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0;
+		SDL_SetWindowFullscreen(this->window, flags);
 	}
 
 	bool isSmallWindowSize(int windowWidth, int windowHeight) const {
@@ -267,6 +303,20 @@ struct GopherGame::Impl {
 
 		SDL_Rect textRect = { (windowWidth / 2) - (textWidth / 2), windowHeight - textHeight, textWidth, textHeight };
 		SDL_RenderCopy(this->renderer, uiTexture, nullptr, &textRect);
+	}
+
+	void renderFullscreenIcon() const {
+		SDL_Rect srcRect = { this->isFullscreen ? 32 : 0, 0, 32, 32 };
+		SDL_Rect destRect = this->resolveFullscreenIconRect();
+
+		SDL_Point mousePos;
+		SDL_GetMouseState(&mousePos.x, &mousePos.y);
+		bool mouseIsOverIcon = SDL_PointInRect(&mousePos, &destRect);
+
+		Uint8 iconColorMod = mouseIsOverIcon ? 0xFF : 0xCC;
+		SDL_SetTextureColorMod(this->fullscreenIconTexture, iconColorMod, iconColorMod, iconColorMod);
+
+		SDL_RenderCopy(this->renderer, this->fullscreenIconTexture, &srcRect, &destRect);
 	}
 
 	void transitionToPlayGame() {
@@ -380,7 +430,13 @@ void GopherGame::handleEvent(const SDL_Event& event) {
 		}
 	}
 	else if (event.type == SDL_MOUSEBUTTONDOWN) {
-		if (ptr->gameState == GopherGameState::WAIT_TO_START) {
+		SDL_Point clickPoint{ event.button.x, event.button.y };
+		SDL_Rect fullscreenIconRect = ptr->resolveFullscreenIconRect();
+
+		if ( SDL_PointInRect(&clickPoint, &fullscreenIconRect) ) {
+			ptr->toggleFullscreen();
+		}
+		else if (ptr->gameState == GopherGameState::WAIT_TO_START) {
 			ptr->transitionToPlayGame();
 		}
 		else if (ptr->gameState == GopherGameState::PLAY_GAME) {
@@ -388,23 +444,28 @@ void GopherGame::handleEvent(const SDL_Event& event) {
 				(event.button.button == SDL_BUTTON_LEFT) &&
 				(ptr->gopherAppearanceState == GopherAppearanceState::APPEARED)
 			) {
-				SDL_Point clickPoint{ event.button.x, event.button.y };
 				ptr->attemptGopherHit(clickPoint);
 			}
 		}
 	}
 	else if (event.type == SDL_FINGERDOWN) {
-		if (ptr->gameState == GopherGameState::WAIT_TO_START) {
+		int windowWidth = 0, windowHeight = 0;
+		SDL_RenderGetLogicalSize(ptr->renderer, &windowWidth, &windowHeight);
+
+		SDL_Point clickPoint{ 0, 0 };
+		clickPoint.x = static_cast<int>(round(event.tfinger.x * windowWidth));
+		clickPoint.y = static_cast<int>(round(event.tfinger.y * windowHeight));
+
+		SDL_Rect fullscreenIconRect = ptr->resolveFullscreenIconRect();
+
+		if ( SDL_PointInRect(&clickPoint, &fullscreenIconRect) ) {
+			ptr->toggleFullscreen();
+		}
+		else if (ptr->gameState == GopherGameState::WAIT_TO_START) {
 			ptr->transitionToPlayGame();
 		}
 		else if (ptr->gameState == GopherGameState::PLAY_GAME) {
 			if (ptr->gopherAppearanceState == GopherAppearanceState::APPEARED) {
-				int windowWidth = 0, windowHeight = 0;
-				SDL_RenderGetLogicalSize(ptr->renderer, &windowWidth, &windowHeight);
-
-				SDL_Point clickPoint{ 0, 0 };
-				clickPoint.x = static_cast<int>(round(event.tfinger.x * windowWidth));
-				clickPoint.y = static_cast<int>(round(event.tfinger.y * windowHeight));
 				ptr->attemptGopherHit(clickPoint);
 			}
 		}
@@ -440,6 +501,8 @@ void GopherGame::render() {
 			SDL_RenderCopy(ptr->renderer, ptr->gopherHitTexture, nullptr, &gopherRect);
 		}
 	}
+
+	ptr->renderFullscreenIcon();
 
 	SDL_RenderPresent(ptr->renderer);
 }

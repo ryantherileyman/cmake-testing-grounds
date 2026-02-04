@@ -92,7 +92,7 @@ struct GameUserData {
 	GopherGame game;
 };
 
-#if defined(__EMSCRIPTEN__) || defined(EMSCRIPTEN_IN_IDE)
+#ifdef __EMSCRIPTEN__
 EM_BOOL em_resize_callback(int eventType, const EmscriptenUiEvent* uiEvent, void* userData) {
 	GameUserData* gameUserData = static_cast<GameUserData*>(userData);
 
@@ -140,7 +140,7 @@ static bool runGame() {
 
 	bool result = gameUserData.game.isInitialized();
 	if (result) {
-#if defined(__EMSCRIPTEN__) || defined(EMSCRIPTEN_IN_IDE)
+#ifdef __EMSCRIPTEN__
 		emscripten_set_resize_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, &gameUserData, false, em_resize_callback);
 		emscripten_set_main_loop_arg(gameLoop, &gameUserData, 0, true);
 #else
