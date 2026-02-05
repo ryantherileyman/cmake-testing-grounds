@@ -39,6 +39,12 @@ static InitSdlResult initializeSdl() {
 	result.sdlMixInitResult = Mix_Init(GAME_MIXER_FORMATS);
 	result.sdlMixOpenAudioResult = Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048);
 
+	// If you're targeting a mobile build, this tells SDL to generate synthetic mouse events whenever touch gestures occur
+	// This already happens for native dektop, and for web-based Emscripten builds
+#if defined(__ANDROID__) || defined(__IPHONEOS__)
+	SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "1");
+#endif
+
 	return result;
 }
 

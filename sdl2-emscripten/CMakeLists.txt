@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.24)
 
 project(Sdl2EmscriptenExample
-	VERSION 1.01
+	VERSION 1.1
 	LANGUAGES CXX
 )
 

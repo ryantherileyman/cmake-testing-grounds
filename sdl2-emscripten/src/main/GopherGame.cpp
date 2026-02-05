@@ -425,6 +425,7 @@ void GopherGame::handleEvent(const SDL_Event& event) {
 			ptr->onWindowResize();
 		}
 	}
+	// Note that SDL generates synthetic mouse events for touch events
 	else if (event.type == SDL_MOUSEBUTTONDOWN) {
 		SDL_Point clickPoint{ event.button.x, event.button.y };
 		SDL_Rect fullscreenIconRect = ptr->resolveFullscreenIconRect();
@@ -440,28 +441,6 @@ void GopherGame::handleEvent(const SDL_Event& event) {
 				(event.button.button == SDL_BUTTON_LEFT) &&
 				(ptr->gopherAppearanceState == GopherAppearanceState::APPEARED)
 			) {
-				ptr->attemptGopherHit(clickPoint);
-			}
-		}
-	}
-	else if (event.type == SDL_FINGERDOWN) {
-		int windowWidth = 0, windowHeight = 0;
-		SDL_RenderGetLogicalSize(ptr->renderer, &windowWidth, &windowHeight);
-
-		SDL_Point clickPoint{ 0, 0 };
-		clickPoint.x = static_cast<int>(round(event.tfinger.x * windowWidth));
-		clickPoint.y = static_cast<int>(round(event.tfinger.y * windowHeight));
-
-		SDL_Rect fullscreenIconRect = ptr->resolveFullscreenIconRect();
-
-		if ( SDL_PointInRect(&clickPoint, &fullscreenIconRect) ) {
-			ptr->toggleFullscreen();
-		}
-		else if (ptr->gameState == GopherGameState::WAIT_TO_START) {
-			ptr->transitionToPlayGame();
-		}
-		else if (ptr->gameState == GopherGameState::PLAY_GAME) {
-			if (ptr->gopherAppearanceState == GopherAppearanceState::APPEARED) {
 				ptr->attemptGopherHit(clickPoint);
 			}
 		}
