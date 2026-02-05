@@ -8,6 +8,7 @@
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten/emscripten.h>
+#include <emscripten/html5.h>
 #endif
 
 #include <SDL_stdinc.h>
@@ -23,15 +24,6 @@
 #include <SDL_image.h>
 
 #include "GopherGame.hpp"
-
-#ifdef __EMSCRIPTEN__
-EM_JS(int, get_canvas_width, (), {
-	return document.getElementById("canvas").width;
-});
-EM_JS(int, get_canvas_height, (), {
-	return document.getElementById("canvas").height;
-});
-#endif
 
 enum class GopherGameState {
 	WAIT_TO_START,
@@ -180,9 +172,9 @@ struct GopherGame::Impl {
 
 	SDL_Window* createWindow() {
 #ifdef __EMSCRIPTEN__
-		int windowWidth = get_canvas_width();
-		int windowHeight = get_canvas_height();
+		int windowWidth = 0, windowHeight = 0;
 		int windowFlags = 0;
+		emscripten_get_canvas_element_size("#canvas", &windowWidth, &windowHeight);
 #else
 		int windowWidth = 960;
 		int windowHeight = 540;
@@ -233,6 +225,7 @@ struct GopherGame::Impl {
 		SDL_RenderSetLogicalSize(this->renderer, logicalWindowSize.x, logicalWindowSize.y);
 		SDL_RenderSetIntegerScale(this->renderer, logicalSizeEqualsWindowSize ? SDL_TRUE : SDL_FALSE);
 
+		// Web-based environments don't need this logic to warp the mouse back into the window, but it's harmless
 		if ( !this->mouseRecoveredFromFullscreenToggle ) {
 			SDL_Rect fullscreenIconRect = this->resolveFullscreenIconRect();
 			SDL_WarpMouseInWindow(this->window, fullscreenIconRect.x, fullscreenIconRect.y);
@@ -242,6 +235,8 @@ struct GopherGame::Impl {
 	}
 
 	void toggleFullscreen() {
+		// Web-based builds may want to handle the full-screen toggle differently
+		// SDL_SetWindowFullscreen will ultimately call emscripten_request_fullscreen, so for this example it works
 		this->isFullscreen = !this->isFullscreen;
 		this->mouseRecoveredFromFullscreenToggle = false;
 
@@ -413,6 +408,7 @@ bool GopherGame::isInitialized() const {
 		(ptr->gopherHitTexture != nullptr) &&
 		(ptr->attributionTexture != nullptr) &&
 		(ptr->smallAttributionTexture != nullptr) &&
+		(ptr->fullscreenIconTexture != nullptr) &&
 		(ptr->gopherAppearSfx != nullptr) &&
 		(ptr->gopherHitSfx != nullptr) &&
 		(ptr->gopherDisappearSfx != nullptr);
