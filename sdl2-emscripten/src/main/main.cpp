@@ -99,23 +99,10 @@ struct GameUserData {
 };
 
 #ifdef __EMSCRIPTEN__
-EM_BOOL em_resize_callback(int eventType, const EmscriptenUiEvent* uiEvent, void* userData) {
+bool onEmscriptenResize(int eventType, const EmscriptenUiEvent* uiEvent, void* userData) {
 	GameUserData* gameUserData = static_cast<GameUserData*>(userData);
-
-	int canvasWidth = 0, canvasHeight = 0;
-	emscripten_get_canvas_element_size("#canvas", &canvasWidth, &canvasHeight);
-
-	SDL_SetWindowSize(gameUserData->game.getWindow(), canvasWidth, canvasHeight);
-
-	SDL_Event event;
-	SDL_zero(event);
-	event.type = SDL_WINDOWEVENT;
-	event.window.event = SDL_WINDOWEVENT_SIZE_CHANGED;
-	event.window.data1 = canvasWidth;
-	event.window.data2 = canvasHeight;
-	SDL_PushEvent(&event);
-
-	return EM_TRUE;
+	gameUserData->game.resizeCanvas();
+	return true;
 }
 #endif
 
@@ -147,7 +134,7 @@ static bool runGame() {
 	bool result = gameUserData.game.isInitialized();
 	if (result) {
 #ifdef __EMSCRIPTEN__
-		emscripten_set_resize_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, &gameUserData, false, em_resize_callback);
+		emscripten_set_resize_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, &gameUserData, false, onEmscriptenResize);
 		emscripten_set_main_loop_arg(gameLoop, &gameUserData, 0, true);
 #else
 		while (gameUserData.gameIsRunning) {

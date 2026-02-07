@@ -13,8 +13,9 @@ public:
 
 	bool isInitialized() const;
 
-	SDL_Window* getWindow() const;
-
+#ifdef __EMSCRIPTEN__
+	void resizeCanvas();
+#endif
 	void handleEvent(const SDL_Event& event);
 	void updateState(std::chrono::duration<double> timerDelta);
 	void render();

@@ -25,6 +25,15 @@
 
 #include "GopherGame.hpp"
 
+#ifdef __EMSCRIPTEN__
+EM_JS(void, enter_soft_fullscreen, (), {
+	document.body.classList.add("soft-fullscreen");
+});
+EM_JS(void, exit_soft_fullscreen, (), {
+	document.body.classList.remove("soft-fullscreen");
+});
+#endif
+
 enum class GopherGameState {
 	WAIT_TO_START,
 	PLAY_GAME,
@@ -74,6 +83,30 @@ struct GopherGame::Impl {
 	SDL_Point gopherPosition;
 	double secondsUntilAppearance = 0.0f;
 	double secondsUntilDisappearance = 0.0f;
+
+	SDL_Point getWindowSize() {
+		SDL_Point result{ 0, 0 };
+#ifdef __EMSCRIPTEN__
+		emscripten_get_canvas_element_size("#canvas", &result.x, &result.y);
+#else
+		SDL_GetWindowSize(this->window, &result.x, &result.y);
+#endif
+		return result;
+	}
+
+	SDL_Window* createWindow() {
+#ifdef __EMSCRIPTEN__
+		SDL_Point windowSize = this->getWindowSize();
+		int windowFlags = 0;
+		emscripten_get_canvas_element_size("#canvas", &windowSize.x, &windowSize.y);
+#else
+		SDL_Point windowSize = { 960, 540 };
+		int windowFlags = SDL_WINDOW_RESIZABLE;
+#endif
+
+		SDL_Window* result = SDL_CreateWindow("Hit the Gopher!", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowSize.x, windowSize.y, windowFlags);
+		return result;
+	}
 
 	Impl() {
 		this->window = this->createWindow();
@@ -170,20 +203,19 @@ struct GopherGame::Impl {
 		}
 	}
 
-	SDL_Window* createWindow() {
 #ifdef __EMSCRIPTEN__
-		int windowWidth = 0, windowHeight = 0;
-		int windowFlags = 0;
-		emscripten_get_canvas_element_size("#canvas", &windowWidth, &windowHeight);
-#else
-		int windowWidth = 960;
-		int windowHeight = 540;
-		int windowFlags = SDL_WINDOW_RESIZABLE;
-#endif
+	void resizeCanvas() {
+		double canvasCssWidth = 0.0, canvasCssHeight = 0.0;
+		emscripten_get_element_css_size("#canvas", &canvasCssWidth, &canvasCssHeight);
+		double dpr = emscripten_get_device_pixel_ratio();
 
-		SDL_Window* result = SDL_CreateWindow("Hit the Gopher!", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowWidth, windowHeight, windowFlags);
-		return result;
+		int canvasWidth = (int)std::floor(canvasCssWidth * dpr);
+		int canvasHeight = (int)std::floor(canvasCssHeight * dpr);
+
+		emscripten_set_canvas_element_size("#canvas", canvasWidth, canvasHeight);
+		SDL_SetWindowSize(this->window, canvasWidth, canvasHeight);
 	}
+#endif
 
 	SDL_Point resolveLogicalWindowSize(int windowWidth, int windowHeight, int clampWidth, int clampHeight) const {
 		double aspectRatio = (double)windowWidth / (double)windowHeight;
@@ -235,13 +267,21 @@ struct GopherGame::Impl {
 	}
 
 	void toggleFullscreen() {
-		// Web-based builds may want to handle the full-screen toggle differently
-		// SDL_SetWindowFullscreen will ultimately call emscripten_request_fullscreen, so for this example it works
 		this->isFullscreen = !this->isFullscreen;
 		this->mouseRecoveredFromFullscreenToggle = false;
 
+#ifdef __EMSCRIPTEN__
+		if ( this->isFullscreen ) {
+			enter_soft_fullscreen();
+		}
+		else {
+			exit_soft_fullscreen();
+		}
+		this->resizeCanvas();
+#else
 		Uint32 flags = this->isFullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0;
 		SDL_SetWindowFullscreen(this->window, flags);
+#endif
 	}
 
 	bool isSmallWindowSize(int windowWidth, int windowHeight) const {
@@ -415,9 +455,11 @@ bool GopherGame::isInitialized() const {
 	return result;
 }
 
-SDL_Window* GopherGame::getWindow() const {
-	return ptr->window;
+#ifdef __EMSCRIPTEN__
+void GopherGame::resizeCanvas() {
+	ptr->resizeCanvas();
 }
+#endif
 
 void GopherGame::handleEvent(const SDL_Event& event) {
 	if (event.type == SDL_WINDOWEVENT) {
