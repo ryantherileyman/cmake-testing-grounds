@@ -1,0 +1,359 @@
+
+#include <string>
+#include <stdio.h>
+
+#ifdef __EMSCRIPTEN__
+#include <emscripten/emscripten.h>
+#include <emscripten/html5.h>
+#endif
+
+#include <SDL.h>
+#include <SDL_ttf.h>
+
+struct InitSdlResult {
+    int sdlInitResult = -1;
+    int sdlTtfInitResult = -1;
+};
+
+static InitSdlResult initializeSdl() {
+    InitSdlResult result;
+    result.sdlInitResult = SDL_Init(SDL_INIT_VIDEO);
+    result.sdlTtfInitResult = TTF_Init();
+    return result;
+}
+
+static bool sdlInitialized(const InitSdlResult& initResult) {
+    bool result = (initResult.sdlInitResult == 0);
+    result &= (initResult.sdlTtfInitResult == 0);
+    return result;
+}
+
+static void shutdownSdl() {
+    TTF_Quit();
+    SDL_Quit();
+}
+
+enum class RenderAlignment {
+    ALIGN_START,
+    ALIGN_CENTER,
+    ALIGN_END,
+};
+
+struct SampleGame {
+    SDL_Window* window = nullptr;
+    SDL_Renderer* renderer = nullptr;
+    TTF_Font* font = nullptr;
+
+    bool mouseWasClicked = false;
+    int mouseX = 0;
+    int mouseY = 0;
+    bool windowWasResized = false;
+    int windowSizeX = 0;
+    int windowSizeY = 0;
+    bool isFullscreen = false;
+
+    SDL_Window* createWindow() {
+        int windowWidth = 960;
+        int windowHeight = 540;
+        int windowFlags = SDL_WINDOW_RESIZABLE;
+
+        SDL_Window* result = SDL_CreateWindow("Testing Window Resize / Fullscreen / Orientation", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowWidth, windowHeight, windowFlags);
+        return result;
+    }
+
+    SampleGame() {
+        this->window = this->createWindow();
+        if (this->window != nullptr) {
+            Uint32 renderFlags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC;
+            this->renderer = SDL_CreateRenderer(this->window, -1, renderFlags);
+        }
+        if (this->renderer != nullptr) {
+            this->font = TTF_OpenFont("resources/OpenSans-Semibold.ttf", 16);
+        }
+    }
+
+    ~SampleGame() {
+        if (this->font != nullptr) {
+            TTF_CloseFont(this->font);
+        }
+        if (this->renderer != nullptr) {
+            SDL_DestroyRenderer(this->renderer);
+        }
+        if (this->window != nullptr) {
+            SDL_DestroyWindow(this->window);
+        }
+    }
+
+    bool isInitialized() const {
+        bool result = (this->window != nullptr);
+        result &= (this->renderer != nullptr);
+        result &= (this->font != nullptr);
+        return result;
+    }
+
+    SDL_Point getWindowSize() {
+        SDL_Point result{ 0, 0 };
+#ifdef __EMSCRIPTEN__
+        emscripten_get_canvas_element_size("#canvas", &result.x, &result.y);
+#else
+        SDL_GetWindowSize(this->window, &result.x, &result.y);
+#endif
+        return result;
+    }
+
+    bool checkWindowOutOfSync() {
+#ifdef __EMSCRIPTEN__
+        SDL_Point canvasSize{ 0, 0 };
+        emscripten_get_canvas_element_size("#canvas", &canvasSize.x, &canvasSize.y);
+
+        SDL_Point windowSize{ 0, 0 };
+        SDL_GetWindowSize(this->window, &windowSize.x, &windowSize.y);
+
+        bool result = false;
+        if ( (canvasSize.x != windowSize.x) || (canvasSize.y != windowSize.y) ) {
+            result = true;
+        }
+        return result;
+#else
+        return false;
+#endif
+    }
+
+    SDL_Rect resolveFullscreenToggleRect() {
+        SDL_Point windowSize = this->getWindowSize();
+
+        SDL_Rect result{ windowSize.x / 2, 15, (windowSize.x / 2) - 15, 100 };
+        return result;
+    }
+
+    void dumpWindowInfo() {
+#ifdef __EMSCRIPTEN__
+        SDL_Point canvasSize{ 0, 0 };
+        emscripten_get_canvas_element_size("#canvas", &canvasSize.x, &canvasSize.y);
+        printf("Canvas size: %d,%d\n", canvasSize.x, canvasSize.y);
+#endif
+
+        SDL_Point windowSize{ 0, 0 };
+        SDL_GetWindowSize(this->window, &windowSize.x, &windowSize.y);
+        printf("Window size: %d,%d\n", windowSize.x, windowSize.y);
+
+        SDL_Point rendererSize{ 0, 0 };
+        SDL_GetRendererOutputSize(this->renderer, &rendererSize.x, &rendererSize.y);
+        printf("Renderer size: %d,%d\n", rendererSize.x, rendererSize.y);
+
+        SDL_Rect fullscreenToggleRect = resolveFullscreenToggleRect();
+        printf("Fullscreen toggle rect: %d,%d,%d,%d\n", fullscreenToggleRect.x, fullscreenToggleRect.y, fullscreenToggleRect.w, fullscreenToggleRect.h);
+    }
+
+    void toggleFullscreen() {
+        this->isFullscreen = !this->isFullscreen;
+        Uint32 flags = this->isFullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0;
+        SDL_SetWindowFullscreen(this->window, flags);
+    }
+
+    void handleEvent(SDL_Event& event) {
+        if (event.type == SDL_WINDOWEVENT) {
+            if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
+                this->mouseWasClicked = false;
+                this->windowWasResized = true;
+                this->windowSizeX = event.window.data1;
+                this->windowSizeY = event.window.data2;
+            }
+        }
+        else if (event.type == SDL_MOUSEBUTTONDOWN) {
+            this->windowWasResized = false;
+            this->mouseWasClicked = false;
+
+            if ( this->checkWindowOutOfSync() ) {
+                this->dumpWindowInfo();
+                printf("Mouse click: %d,%d\n", event.button.x, event.button.y);
+
+                if ( this->isFullscreen ) {
+                    printf("Recovering by toggling back out of fullscreen\n");
+                    this->toggleFullscreen();
+                }
+            }
+
+            SDL_Point clickPoint{ event.button.x, event.button.y };
+            SDL_Rect fullscreenToggleRect = this->resolveFullscreenToggleRect();
+
+            if (SDL_PointInRect(&clickPoint, &fullscreenToggleRect)) {
+                this->toggleFullscreen();
+            }
+            else {
+                this->mouseWasClicked = true;
+                this->mouseX = event.button.x;
+                this->mouseY = event.button.y;
+            }
+        }
+    }
+
+    void renderGrid() {
+        SDL_Point windowSize = this->getWindowSize();
+
+        SDL_SetRenderDrawColor(this->renderer, 0xCC, 0xCC, 0xCC, 0xFF);
+
+        for ( int x = 100; x < windowSize.x; x += 100 ) {
+            SDL_RenderDrawLine(this->renderer, x, 0, x, windowSize.y);
+        }
+
+        for ( int y = 100; y < windowSize.y; y += 100 ) {
+            SDL_RenderDrawLine(this->renderer, 0, y, windowSize.x, y);
+        }
+    }
+
+    void renderCornerRects() {
+        SDL_Point windowSize = this->getWindowSize();
+
+        SDL_SetRenderDrawColor(this->renderer, 0xFF, 0x33, 0x33, 0xFF);
+
+        SDL_Rect cornerRectList[8] = {
+            { 0, 0, 10, 3 },
+            { 0, 0, 3, 10 },
+            { 0, windowSize.y - 11, 3, 10 },
+            { 0, windowSize.y - 4, 10, 3 },
+            { windowSize.x - 11, 0, 10, 3 },
+            { windowSize.x - 4, 0, 3, 10 },
+            { windowSize.x - 11, windowSize.y - 4, 10, 3 },
+            { windowSize.x - 4, windowSize.y - 11, 3, 10 },
+        };
+
+        SDL_RenderFillRects(this->renderer, cornerRectList, 8);
+    }
+
+    void renderFullscreenToggle() {
+        SDL_Rect fullscreenRect = this->resolveFullscreenToggleRect();
+
+        SDL_Point mousePos;
+        SDL_GetMouseState(&mousePos.x, &mousePos.y);
+        bool mouseIsOverToggle = SDL_PointInRect(&mousePos, &fullscreenRect);
+
+        Uint8 toggleColor = mouseIsOverToggle ? 0xFF : 0xCC;
+        SDL_SetRenderDrawColor(this->renderer, toggleColor, toggleColor, toggleColor, 0xFF);
+        SDL_RenderFillRect(this->renderer, &fullscreenRect);
+    }
+
+    void renderAlignedText(const std::string& text, RenderAlignment horzAlign, RenderAlignment vertAlign, int padX, int padY, SDL_Color color) {
+        SDL_Point windowSize = this->getWindowSize();
+
+        SDL_Surface* surface = TTF_RenderUTF8_Blended(this->font, text.c_str(), color);
+        SDL_Texture* texture = SDL_CreateTextureFromSurface(this->renderer, surface);
+        SDL_FreeSurface(surface);
+
+        int textWidth = 0, textHeight = 0;
+        SDL_QueryTexture(texture, nullptr, nullptr, &textWidth, &textHeight);
+
+        int textX = 15 + padX;
+        if ( horzAlign == RenderAlignment::ALIGN_CENTER ) {
+            textX = (windowSize.x / 2) - (textWidth / 2);
+        }
+        else if ( horzAlign == RenderAlignment::ALIGN_END ) {
+            textX = windowSize.x - textWidth - 15 - padX;
+        }
+
+        int textY = 15 + padY;
+        if ( vertAlign == RenderAlignment::ALIGN_CENTER ) {
+            textY = (windowSize.y / 2) - (textHeight / 2);
+        }
+        else if ( vertAlign == RenderAlignment::ALIGN_END ) {
+            textY = windowSize.y - textHeight - 15 - padY;
+        }
+
+        SDL_Rect textRect = { textX, textY, textWidth, textHeight };
+        SDL_RenderCopy(this->renderer, texture, nullptr, &textRect);
+
+        SDL_DestroyTexture(texture);
+    }
+
+    void render() {
+        SDL_SetRenderDrawColor(this->renderer, 240, 240, 240, 255);
+        SDL_RenderClear(this->renderer);
+
+        this->renderGrid();
+        this->renderCornerRects();
+        this->renderFullscreenToggle();
+
+        std::string clickText = "Waiting for Mouse Button";
+        if (this->windowWasResized) {
+            clickText = "Resize: " + std::to_string(this->windowSizeX) + "," + std::to_string(this->windowSizeY);
+        }
+        else if (this->mouseWasClicked) {
+            clickText = "Click: " + std::to_string(this->mouseX) + "," + std::to_string(this->mouseY);
+        }
+        this->renderAlignedText(clickText, RenderAlignment::ALIGN_START, RenderAlignment::ALIGN_CENTER, 0, 0, SDL_Color{ 0x10, 0x10, 0x10, 0xFF});
+        this->renderAlignedText(clickText, RenderAlignment::ALIGN_CENTER, RenderAlignment::ALIGN_CENTER, 0, 0, SDL_Color{ 0x10, 0x10, 0x10, 0xFF});
+        this->renderAlignedText(clickText, RenderAlignment::ALIGN_END, RenderAlignment::ALIGN_CENTER, 0, 0, SDL_Color{ 0x10, 0x10, 0x10, 0xFF});
+        this->renderAlignedText(clickText, RenderAlignment::ALIGN_CENTER, RenderAlignment::ALIGN_START, 0, 0, SDL_Color{ 0x10, 0x10, 0x10, 0xFF});
+        this->renderAlignedText(clickText, RenderAlignment::ALIGN_CENTER, RenderAlignment::ALIGN_END, 0, 0, SDL_Color{ 0x10, 0x10, 0x10, 0xFF});
+
+        SDL_Point windowSize = this->getWindowSize();
+
+        std::string windowSizeText = std::to_string(windowSize.x) + "," + std::to_string(windowSize.y);
+        this->renderAlignedText(windowSizeText, RenderAlignment::ALIGN_START, RenderAlignment::ALIGN_START, 0, 50, SDL_Color{ 0x33, 0x33, 0xCC, 0xFF});
+        this->renderAlignedText(windowSizeText, RenderAlignment::ALIGN_START, RenderAlignment::ALIGN_END, 0, 50, SDL_Color{ 0x33, 0x33, 0xCC, 0xFF});
+        this->renderAlignedText(windowSizeText, RenderAlignment::ALIGN_END, RenderAlignment::ALIGN_START, 0, 50, SDL_Color{ 0x33, 0x33, 0xCC, 0xFF});
+        this->renderAlignedText(windowSizeText, RenderAlignment::ALIGN_END, RenderAlignment::ALIGN_END, 0, 50, SDL_Color{ 0x33, 0x33, 0xCC, 0xFF});
+
+        SDL_RenderPresent(this->renderer);
+    }
+};
+
+struct GameUserData {
+    bool gameIsRunning = true;
+    SampleGame sampleGame;
+};
+
+static void gameLoop(void* userData) {
+    SDL_Event event;
+    GameUserData* gameUserData = static_cast<GameUserData*>(userData);
+
+    while (SDL_PollEvent(&event)) {
+        if (event.type == SDL_QUIT) {
+            gameUserData->gameIsRunning = false;
+        }
+        else {
+            gameUserData->sampleGame.handleEvent(event);
+        }
+    }
+
+    if (gameUserData->gameIsRunning) {
+        gameUserData->sampleGame.render();
+    }
+}
+
+static bool runGame() {
+    GameUserData gameUserData;
+
+    bool result = gameUserData.sampleGame.isInitialized();
+    if (result) {
+#ifdef __EMSCRIPTEN__
+        emscripten_set_main_loop_arg(gameLoop, &gameUserData, 0, true);
+#else
+        while (gameUserData.gameIsRunning) {
+            gameLoop(&gameUserData);
+        }
+#endif
+    }
+
+    return result;
+}
+
+int main(int argc, char* argv[]) {
+    int result = 0;
+
+    InitSdlResult initSdlResult = initializeSdl();
+    if (sdlInitialized(initSdlResult)) {
+        if (!runGame()) {
+            SDL_Log("Failed to initialize the game");
+            result = -1;
+        }
+    }
+    else {
+        SDL_Log("Failed to initialize SDL");
+        result = -1;
+    }
+
+    shutdownSdl();
+
+    return result;
+}

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Sample - Mobile Web</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <style type="text/css">
+        html {
+            margin: 0px;
+            height: 100%;
+        }
+        body {
+            display: flex;
+            flex-direction: column;
+            margin: 0px;
+            height: 100%;
+        }
+        header.site-header {
+            flex: 0 0 auto;
+        }
+        section.site-content {
+            display: flex;
+            flex: 1 1 auto;
+            flex-direction: column;
+            min-height: 0px;
+        }
+        div.game-container {
+            flex: 1 1 auto;
+            min-height: 0px;
+            overflow: hidden;
+        }
+        #canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            touch-action: none;
+        }
+    </style>
+
+    <script type="text/javascript">
+        var Module;
+    </script>
+
+    <script type="module">
+        let canvasElement = document.getElementById("canvas");
+
+        function documentReady(eventHandler) {
+            if ( document.readyState !== "loading" ) {
+                eventHandler();
+            }
+            else {
+                document.addEventListener("DOMContentLoaded", eventHandler);
+            }
+        }
+
+        documentReady(initializePage);
+
+        function initializePage() {
+            Module = {
+                canvas: canvasElement,
+            };
+
+            var gameScript = document.createElement("script");
+            gameScript.type = "text/javascript";
+            gameScript.src = "Sdl2MobileWeb.js";
+            document.body.appendChild(gameScript);
+        }
+    </script>
+</head>
+
+<body>
+    <header class="site-header" id="site-header">
+        Sample Mobile Web
+    </header>
+    <section class="site-content">
+        <div class="game-container" id="game-container">
+            <canvas id="canvas"></canvas>
+        </div>
+    </section>
+</body>
+
+</html>
