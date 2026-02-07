@@ -1,6 +1,5 @@
 
 #include <string>
-#include <stdio.h>
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten/emscripten.h>
@@ -34,11 +33,11 @@ static void shutdownSdl() {
 }
 
 #ifdef __EMSCRIPTEN__
-EM_JS(void, move_canvas_to_full, (), {
-    document.getElementById("site-header").style.display = "none";
+EM_JS(void, enter_soft_fullscreen, (), {
+    document.body.classList.add("soft-fullscreen");
 });
-EM_JS(void, move_canvas_out_of_full, (), {
-    document.getElementById("site-header").style.display = "block";
+EM_JS(void, exit_soft_fullscreen, (), {
+    document.body.classList.remove("soft-fullscreen");
 });
 #endif
 
@@ -124,30 +123,10 @@ struct SampleGame {
         int canvasWidth = (int)std::floor(canvasCssWidth * dpr);
         int canvasHeight = (int)std::floor(canvasCssHeight * dpr);
 
-        printf("Will resize canvas to: %d,%d\n", canvasWidth, canvasHeight);
-
         emscripten_set_canvas_element_size("#canvas", canvasWidth, canvasHeight);
         SDL_SetWindowSize(this->window, canvasWidth, canvasHeight);
     }
 #endif
-
-    bool checkWindowOutOfSync() {
-#ifdef __EMSCRIPTEN__
-        SDL_Point canvasSize{ 0, 0 };
-        emscripten_get_canvas_element_size("#canvas", &canvasSize.x, &canvasSize.y);
-
-        SDL_Point windowSize{ 0, 0 };
-        SDL_GetWindowSize(this->window, &windowSize.x, &windowSize.y);
-
-        bool result = false;
-        if ( (canvasSize.x != windowSize.x) || (canvasSize.y != windowSize.y) ) {
-            result = true;
-        }
-        return result;
-#else
-        return false;
-#endif
-    }
 
     SDL_Rect resolveFullscreenToggleRect() {
         SDL_Point windowSize = this->getWindowSize();
@@ -156,35 +135,15 @@ struct SampleGame {
         return result;
     }
 
-    void dumpWindowInfo() {
-#ifdef __EMSCRIPTEN__
-        SDL_Point canvasSize{ 0, 0 };
-        emscripten_get_canvas_element_size("#canvas", &canvasSize.x, &canvasSize.y);
-        printf("Canvas size: %d,%d\n", canvasSize.x, canvasSize.y);
-#endif
-
-        SDL_Point windowSize{ 0, 0 };
-        SDL_GetWindowSize(this->window, &windowSize.x, &windowSize.y);
-        printf("Window size: %d,%d\n", windowSize.x, windowSize.y);
-
-        SDL_Point rendererSize{ 0, 0 };
-        SDL_GetRendererOutputSize(this->renderer, &rendererSize.x, &rendererSize.y);
-        printf("Renderer size: %d,%d\n", rendererSize.x, rendererSize.y);
-
-        SDL_Rect fullscreenToggleRect = resolveFullscreenToggleRect();
-        printf("Fullscreen toggle rect: %d,%d,%d,%d\n", fullscreenToggleRect.x, fullscreenToggleRect.y, fullscreenToggleRect.w, fullscreenToggleRect.h);
-    }
-
     void toggleFullscreen() {
         this->isFullscreen = !this->isFullscreen;
+#ifdef __EMSCRIPTEN__
         if ( this->isFullscreen ) {
-            move_canvas_to_full();
+            enter_soft_fullscreen();
         } else {
-            move_canvas_out_of_full();
+            exit_soft_fullscreen();
         }
         this->resizeCanvas();
-#ifdef __EMSCRIPTEN__
-
 #else
         Uint32 flags = this->isFullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0;
         SDL_SetWindowFullscreen(this->window, flags);
@@ -203,17 +162,6 @@ struct SampleGame {
         else if (event.type == SDL_MOUSEBUTTONDOWN) {
             this->windowWasResized = false;
             this->mouseWasClicked = false;
-
-            // This was needed when requesting full screen in Emscripten via SDL_SetWindowFullscreen
-            if ( this->checkWindowOutOfSync() ) {
-                this->dumpWindowInfo();
-                printf("Mouse click: %d,%d\n", event.button.x, event.button.y);
-
-                if ( this->isFullscreen ) {
-                    printf("Recovering by toggling back out of fullscreen\n");
-                    this->toggleFullscreen();
-                }
-            }
 
             SDL_Point clickPoint{ event.button.x, event.button.y };
             SDL_Rect fullscreenToggleRect = this->resolveFullscreenToggleRect();
@@ -364,8 +312,6 @@ static void gameLoop(void* userData) {
 
 #ifdef __EMSCRIPTEN__
 static bool onEmscriptenResize(int eventType, const EmscriptenUiEvent* uiEvent, void* userData) {
-    printf("In onEmscriptenResize\n");
-
     GameUserData* gameUserData = static_cast<GameUserData*>(userData);
     gameUserData->sampleGame.resizeCanvas();
     return true;
