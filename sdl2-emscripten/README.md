@@ -8,17 +8,18 @@ The game itself is a simplified version of Whack-a-Mole.  I bet you didn't think
 
 ### Build Instructions (Windows)
 
-For Visual Studio, you can simply use the Open Folder option in the menu to open the project, and it will let you build a default x64-Debug desktop configuration.  I've included batch files for Windows users to build separate targets for:
+Provides a `CMakePresets.json` file, accepted by most integrated development environments.  If you have both Visual Studio Community and VS Code installed, you should be able to open the folder in VS Code and choose the appropriate configuration preset.
+
+For command-line building, I've included batch files for Windows users to build separate targets for:
 - Desktop Release (`configure-desktop-release.bat` and `build-desktop-release.bat`)
 - Emscripten (WebAssembly) Debug (`configure-emscripten-debug.bat` and `build-emscripten-debug.bat`)
 - Emscripten (WebAssembly) Release (`configure-emscripten-release.bat` and `build-emscripten-release.bat`)
-
-I tried to get Emscripten configurations working with a `CMakePresets.json` file, but Visual Studio was incredibly finicky and I couldn't get a reliable workflow going with it.  I may continue investigating this further in the future, but for now I'm building the Emscripten builds on the command-line.
 
 ### Attribution
 
 Cartoon Gopher: Stable Diffusion (AI-Generated)  
 Font: Open Sans (from fontsquirrel.com)  
+Icons: Google Materials Icons (https://fonts.google.com/icons)  
 Sound Effects: ZapSplat (from zapsplat.com)  
 
 Music:  
